@@ -46,7 +46,9 @@ class VideoResponse(BaseModel):
     post_description : str
     post_visibility : str
 
-
+@app.get("/")
+async def root():
+    return {"message": "Welcome To Linkedin Server!!!"}
     
 @app.post("/generate_linkedin_content")
 async def generate_linkedin_content(request_data: ContentRequest):
