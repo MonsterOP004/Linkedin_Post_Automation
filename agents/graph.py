@@ -7,6 +7,8 @@ from .critic_agent import critic_agent
 from .writer_agent import writer_agent
 from .researcher_agent import research_agent
 
+MAX_REWRITES = 3
+
 class AgentState(BaseModel):
     topic: str
     description: str
@@ -18,9 +20,19 @@ class AgentState(BaseModel):
     post: Optional[str] = None
     score: Optional[float] = None
     critique: Optional[str] = None
+    iteration_count: int = 0
 
 def should_rewrite(state: AgentState) -> str:
-    return "writer" if (state.score or 10) < 7 else END
+
+    if (state.score is None or state.score < 7) and state.iteration_count < MAX_REWRITES:
+        print(f"Critique score ({state.score}) is below 7 or not set. Rewriting. Iteration: {state.iteration_count}/{MAX_REWRITES}")
+        return "writer"
+    else:
+        if state.score is not None and state.score >= 7:
+            print(f"Critique score ({state.score}) is 7 or higher. Ending graph.")
+        else:
+            print(f"Max rewrites ({MAX_REWRITES}) reached. Ending graph despite score ({state.score}).")
+        return END
 
 def research_wrapper(state: AgentState) -> AgentState:
     query = f"""
@@ -70,6 +82,10 @@ def critic_wrapper(state: AgentState) -> AgentState:
     except Exception:
         state.score = 5
         state.critique = "Failed to parse critic output. Please refine model response."
+    
+    state.iteration_count += 1 
+    print(f"Critic Score: {state.score}, Iteration: {state.iteration_count}")
+    print(f"Critique: {state.critique}")
     return state
 
 
