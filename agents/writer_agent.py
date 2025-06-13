@@ -25,6 +25,7 @@ Formatting rules:
 - Do **not** use quotation marks unless you're quoting someone.
 - Only use hashtags (e.g., `#leadership`, `#techculture`) at the **end** of the post if appropriate.
 - Use clear line breaks to format the post naturally.
+- For next line escape sequences, use `\\n`.
 
 Return the output in **this JSON format**:
 {{
