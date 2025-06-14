@@ -95,8 +95,8 @@ if __name__ == "__main__":
 
     commentary = "ChatGPT Is Poisoning Your Brain…"
     article_url = "https://medium.com/@jordan_gibbs/chatgpt-is-poisoning-your-brain-b66c16ddb7ae"
-    article_title = "ChatGPT Is Poisoning Your Brain…"
-    article_description = "A ChatGPT session is an echo chamber to end all other echo chambers — it’s just you, an overly friendly AI, and all your thoughts, dreams, desires, and secrets endlessly affirmed, validated, and supported."
+    article_title = "ChatGPT Is Poisoning Your Brain HAHAHA…"
+    article_description = ""
     
     result = share_url_post(
         share_text=commentary,

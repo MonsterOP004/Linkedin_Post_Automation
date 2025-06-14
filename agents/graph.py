@@ -1,8 +1,8 @@
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional,Literal
 from langchain_core.runnables import RunnableLambda
-from .models import CriticOutput, WriterOutput, ResearchOutput
+from .models import CriticOutput, WriterOutput, ResearchOutput, ImageAnalysisOutput, URLAnalysisOutput, VideoAnalysisOutput
 from .critic_agent import critic_agent
 from .writer_agent import writer_agent
 from .researcher_agent import research_agent
