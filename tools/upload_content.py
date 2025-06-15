@@ -13,11 +13,11 @@ class ContentUploader:
     def upload_text_content(self,text_content,visibility):
         return share_text_post(text_content,visibility)
 
-    def upload_url_content(self,share_text, url, title, description, visibility):
+    def upload_url_content(self,share_text, url, title, visibility, description=None):
         return share_url_post(share_text, url, title, description, visibility)
     
     
-    def upload_image_content(self,image_paths,share_text,title,description,visibility):
+    def upload_image_content(self, image_paths, share_text, visibility, titles=None, descriptions=None):
         return share_image_post(
             image_paths,
             share_text,
@@ -26,7 +26,7 @@ class ContentUploader:
             visibility
         )
     
-    def upload_video_content(self,video_path,share_text,title,description,visibility):
+    def upload_video_content(self,video_path,share_text,title,visibility,description=None):
         return share_image_post(
             video_path,
             share_text,

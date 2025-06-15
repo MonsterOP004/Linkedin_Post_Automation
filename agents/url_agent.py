@@ -1,87 +1,77 @@
-from langchain_groq import ChatGroq
-from langchain.prompts import ChatPromptTemplate
-from langchain_community.tools import BraveSearch  # Example for web searching/scraping
-from langchain.agents import initialize_agent, AgentType
+# url_agent.py
+import requests
+import json
+import os
 from dotenv import load_dotenv
+from langchain_core.runnables import RunnableLambda
+from .models import URLAnalysisOutput 
 
 load_dotenv()
 
-# You might need a dedicated web scraping tool or a more advanced summarization agent
+RENDER_API_BASE_URL = os.getenv("RENDER_API_BASE_URL", "https://linkedin-url-summary-extractor.onrender.com")
 
-class URLAnalyzerAgent:
-    def __init__(self):
-        self.llm = ChatGroq(model="llama-3.1-8b-instant")
-        # Using BraveSearch as an example tool that can potentially return page content
-        # For more robust scraping, consider tools like `requests` + `BeautifulSoup` or `Playwright`
-        self.search_tool = BraveSearch(name="brave_search", description="Use this to search the internet and get content from URLs. Input should be a search query or a URL.")
+def call_render_url_summarizer_api(url: str) -> dict:
+    """
+    Calls your deployed Render API's /url_content_summarizer endpoint.
+    Returns the full JSON response from the API.
+    """
+    endpoint = "/url_content_summarizer"
+    full_api_url = f"{RENDER_API_BASE_URL}{endpoint}"
 
-        self.agent_executor = initialize_agent(
-            tools=[self.search_tool],
-            llm=self.llm,
-            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-            verbose=True,
-            handle_parsing_errors=True,
-            max_iterations=3,
+    headers = {
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "url": url
+    }
+
+    try:
+        response = requests.post(full_api_url, headers=headers, data=json.dumps(payload), timeout=10)
+        response.raise_for_status()  
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error calling Render URL summarizer API for {url}: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "url": url,
+            "analysis": {
+                "main_topic": "Error",
+                "key_points": [],
+                "summary": f"Failed to retrieve content from {url}."
+            }
+        }
+
+def url_analysis_runnable(url: str) -> URLAnalysisOutput:
+    """
+    This function will be wrapped by RunnableLambda.
+    It takes a URL, calls the Render API, and maps the response
+    to the URLAnalysisOutput Pydantic model.
+    """
+    api_response = call_render_url_summarizer_api(url)
+    
+    if api_response.get("status") == "success":
+        analysis_data = api_response.get("analysis", {})
+        try:
+            return URLAnalysisOutput(
+                summary=analysis_data.get("summary", "No summary provided."),
+                main_points=analysis_data.get("key_points", []),
+                tone_of_source="Informative"
+            )
+        except Exception as e:
+            print(f"Error parsing URL analysis output from API response for {url}: {e}")
+            return URLAnalysisOutput(
+                summary=f"Failed to parse detailed analysis from {url}. Error: {e}",
+                main_points=["Parsing error encountered."],
+                tone_of_source="Unknown"
+            )
+    else:
+        error_message = api_response.get("message", "Unknown API error during URL summarization.")
+        analysis_data = api_response.get("analysis", {}) 
+        return URLAnalysisOutput(
+            summary=analysis_data.get('summary', error_message),
+            main_points=analysis_data.get('key_points', []),
+            tone_of_source="Error"
         )
 
-    def run(self, url: str) -> dict:
-        print(f"URL Analyzer Agent: Attempting to analyze URL: {url}")
-        # The agent will try to use the search_tool to get information from the URL
-        query = f"Access and summarize the main content of the following URL for a LinkedIn post, extract key points, and identify the tone of the source: {url}"
-        try:
-            response = self.agent_executor.run(query)
-
-            # This part is crucial: parsing the agent's free-form response into structured JSON.
-            # A common approach is to pass the agent's response to another LLM call with a specific JSON schema.
-            # For simplicity here, we'll try to extract patterns, but this is less robust.
-            # A more robust solution would involve defining a specific output format for the URL analysis agent,
-            # and then parsing it with Pydantic.
-
-            # Example of trying to parse. This is heuristic and might need refinement.
-            summary = ""
-            main_points = []
-            tone = "Unknown"
-
-            # Use another prompt to structure the output if the agent doesn't directly return JSON
-            structuring_prompt = ChatPromptTemplate.from_template("""
-            Given the following analysis from a web Browse agent, extract the summary, main points (as a list), and the tone of the source.
-
-            Agent Output:
-            {agent_output}
-
-            Return your analysis in this JSON format:
-            {{
-              "summary": "<summary>",
-              "main_points": ["<point1>", "<point2>"],
-              "tone_of_source": "<tone>"
-            }}
-            """)
-            structuring_llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.1)
-            structured_response = (structuring_prompt | structuring_llm).invoke({"agent_output": response})
-
-            parsed = {}
-            try:
-                parsed = eval(structured_response.content) # Using eval for quick parse of string JSON, use json.loads for production
-                return parsed
-            except Exception as e:
-                print(f"Error parsing structured response from URL analysis: {e}. Raw response: {structured_response.content}")
-                # Fallback to direct agent response if parsing fails
-                summary = response
-                main_points = []
-                tone = "Uncertain"
-                return {
-                    "summary": summary,
-                    "main_points": main_points,
-                    "tone_of_source": tone
-                }
-
-        except Exception as e:
-            print(f"URL Analyzer Agent failed to run: {e}")
-            return {
-                "summary": f"Could not analyze URL: {url}. Error: {e}",
-                "main_points": [],
-                "tone_of_source": "Failed"
-            }
-
-
-url_analyser_agent = URLAnalyzerAgent()
+url_agent = RunnableLambda(url_analysis_runnable)

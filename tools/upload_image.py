@@ -5,6 +5,35 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+def download_image(image_url, local_filename):
+    """
+    Downloads an image from a given URL and saves it to a local file.
+
+    Parameters:
+    - image_url: The URL of the image to download.
+    - local_filename: The path where the image will be saved locally.
+
+    Returns:
+    - The local_filename if download is successful, None otherwise.
+    """
+    try:
+        print(f"Attempting to download image from: {image_url}")
+        response = requests.get(image_url, stream=True)
+        response.raise_for_status() # Raise an exception for HTTP errors
+
+        with open(local_filename, 'wb') as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+        print(f"Image downloaded successfully to: {local_filename}")
+        return local_filename
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading image from {image_url}: {e}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred during download: {e}")
+        return None
+
+
 def register_image(user_id):
     """
     Step 1: Register an image to be uploaded to LinkedIn
@@ -194,7 +223,7 @@ def share_image_post(image_paths, share_text, titles=None, descriptions=None, vi
     Complete process to share multiple images in a single LinkedIn post.
 
     Parameters:
-    - image_paths: List of image file paths
+    - image_paths: List of image file paths (local paths, not URLs)
     - share_text: The text commentary for your post
     - titles: Optional list of titles (same length as image_paths or None)
     - descriptions: Optional list of descriptions (same length as image_paths or None)
@@ -282,25 +311,38 @@ def share_image_post(image_paths, share_text, titles=None, descriptions=None, vi
         print(response.text)
         return None
 
-
-
-# Example usage
 if __name__ == "__main__":
-    # Example image post
-    image_path = "image.png"  # Replace with your image path
-    share_text = "Here‘s How to Stop It Before It’s Too Late."
-    image_title = "ChatGPT Is Poisoning Your Brain…"
-    image_description = "A ChatGPT session is an echo chamber to end all other echo chambers — it’s just you, an overly friendly AI, and all your thoughts, dreams, desires, and secrets endlessly affirmed, validated, and supported."
-    
-    # Share the image post
-    result = share_image_post(
-        image_path=image_path,
-        share_text=share_text,
-        title=image_title,
-        description=image_description
-    )
-    
-    if result:
-        print("Response data:")
-        print(json.dumps(result, indent=2))
+    # URL of the image you want to upload
+    image_url_from_error = "https://res.cloudinary.com/dxqqdr2te/image/upload/v1749980204/public_images/jdhzfi3vunvvqx58wuyz.png"
+    local_image_path = "downloaded_image.png" # The local file name where the image will be saved
 
+    # Download the image first
+    downloaded_file = download_image(image_url_from_error, local_image_path)
+
+    if downloaded_file:
+        # Now you can use the local file path to share the image
+        share_text = "Here‘s How to Stop It Before It’s Too Late."
+        image_title = ""
+        image_description = ""
+        
+        # Share the image post
+        result = share_image_post(
+            image_paths=[downloaded_file], # Pass the local file path here
+            share_text=share_text,
+            titles=[image_title],
+            descriptions=[image_description]
+        )
+        
+        if result:
+            print("Response data:")
+            print(json.dumps(result, indent=2))
+        
+        # Clean up the downloaded file (optional)
+        try:
+            if os.path.exists(local_image_path):
+                os.remove(local_image_path)
+                print(f"Cleaned up local file: {local_image_path}")
+        except Exception as e:
+            print(f"Error cleaning up file: {e}")
+    else:
+        print("Image download failed, cannot proceed with LinkedIn post.")

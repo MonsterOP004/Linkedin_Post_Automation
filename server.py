@@ -26,6 +26,7 @@ class ContentRequest(BaseModel):
     audience: str
     intent: str
     word_limit: int = 250
+    type: str
     
 class TextResponse(BaseModel):
     
@@ -37,16 +38,13 @@ class URLResponse(BaseModel):
     
     post_title : str
     post_content : str
-    post_description : str
     post_url : str
     post_visibility : str
 
 class ImageResponse(BaseModel):
     
-    post_title : str
     post_content : str
     post_image : str
-    post_description : str
     post_visibility : str
 
 class VideoResponse(BaseModel):
@@ -71,6 +69,7 @@ async def generate_linkedin_content(request_data: ContentRequest):
         audience=request_data.audience,
         intent=request_data.intent,
         word_limit=request_data.word_limit,
+        type=request_data.type,
         research_data=None,
         draft=None,
         feedback=None,
@@ -105,14 +104,13 @@ async def post_linkedin_url_content(request_data: URLResponse):
     try:
 
 
-        if not request_data.post_title or not request_data.post_content or not request_data.post_description or not request_data.post_url or not request_data.post_visibility:
+        if not request_data.post_title or not request_data.post_content or not request_data.post_url or not request_data.post_visibility:
             raise HTTPException(status_code=400, detail="Missing required fields")
 
         response = uploader.upload_url_content(
-            request_data.post_title,
             request_data.post_content,
-            request_data.post_description,
             request_data.post_url,
+            request_data.post_title,
             request_data.post_visibility        
         )
 

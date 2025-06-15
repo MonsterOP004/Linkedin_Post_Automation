@@ -237,7 +237,7 @@ if __name__ == "__main__":
     video_path = "finalvid.mp4"  
     share_text = "Urban Snap Video"
     video_title = "Urban Snap Video 1"
-    video_description = "Urban Snap Video 2"
+    video_description = ""
     
     # Share the video post
     result = share_video_post(
