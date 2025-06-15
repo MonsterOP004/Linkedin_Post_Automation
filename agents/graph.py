@@ -214,42 +214,41 @@ def critic_wrapper(state: AgentState) -> AgentState:
 graph = StateGraph(AgentState)
 
 # Add all nodes
-graph.add_node("url_analysis", RunnableLambda(url_analysis_wrapper))
-graph.add_node("image_analysis", RunnableLambda(image_analysis_wrapper)) # New node
-graph.add_node("video_analysis", RunnableLambda(video_analysis_wrapper)) # New node
+graph.add_node("url_analyzer", RunnableLambda(url_analysis_wrapper))
+graph.add_node("image_analyzer", RunnableLambda(image_analysis_wrapper)) # New node
+graph.add_node("video_analyzer", RunnableLambda(video_analysis_wrapper)) # New node
 graph.add_node("research", RunnableLambda(research_wrapper))
 graph.add_node("writer", RunnableLambda(writer_wrapper))
 graph.add_node("critic", RunnableLambda(critic_wrapper))
 
 # Set entry point with conditional routing based on 'type'
-graph.set_entry_point("start_node") # Define a conceptual start node for routing
+graph.set_entry_point("research") # Define a conceptual start node for routing
 
-# Conditional logic from start_node
 graph.add_conditional_edges(
-    "start_node",
-    # This lambda determines the next node based on the state.type
+    "research",
     lambda state: {
-        "url": "url_analysis",
-        "image": "image_analysis",
-        "video": "video_analysis",
-        "text": "research",
-    }.get(state.type, "research"), # Default to research for any unexpected type
+        "url": "url_analyzer",
+        "image": "image_analyzer",
+        "video": "video_analyzer",
+        "text": "writer"
+    }.get(state.type, "writer"),  # Default to writer if type is unexpected
     {
-        "url_analysis": "url_analysis",
-        "image_analysis": "image_analysis",
-        "video_analysis": "video_analysis",
-        "research": "research",
+        "url_analyzer": "url_analyzer",
+        "image_analyzer": "image_analyzer",
+        "video_analyzer": "video_analyzer",
+        "writer": "writer"
     }
 )
 
-# Define edges
-graph.add_edge("url_analysis", "writer")
-graph.add_edge("image_analysis", "writer") # New edge
-graph.add_edge("video_analysis", "writer") # New edge
-graph.add_edge("research", "writer")
+# After analysis, go to writer
+graph.add_edge("url_analyzer", "writer")
+graph.add_edge("image_analyzer", "writer")
+graph.add_edge("video_analyzer", "writer")
+
+# Continue the flow
 graph.add_edge("writer", "critic")
 
-# Loop back from critic to writer if rewrite is needed, otherwise end
+# Critic decides whether to loop back or end
 graph.add_conditional_edges(
     "critic",
     should_rewrite,
