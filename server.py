@@ -153,9 +153,9 @@ async def post_linkedin_video_content(request_data: VideoResponse):
             raise HTTPException(status_code=400, detail="Missing required fields")
 
         response = uploader.upload_video_content(
-            request_data.post_title,
-            request_data.post_content,
             request_data.post_video,
+            request_data.post_content,
+            request_data.post_title,
             request_data.post_visibility
         )
 
