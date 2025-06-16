@@ -1,6 +1,7 @@
 from fastapi import FastAPI,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List
 from agents.graph import app as langgraph_app, AgentState
 from tools.upload_content import ContentUploader
 import uvicorn
