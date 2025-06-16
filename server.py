@@ -27,6 +27,7 @@ class ContentRequest(BaseModel):
     intent: str
     word_limit: int = 250
     type: str
+    url: str = None
     
 class TextResponse(BaseModel):
     
@@ -52,7 +53,6 @@ class VideoResponse(BaseModel):
     post_title : str
     post_content : str
     post_video : str
-    post_description : str
     post_visibility : str
 
 @app.get("/")
@@ -70,10 +70,15 @@ async def generate_linkedin_content(request_data: ContentRequest):
         intent=request_data.intent,
         word_limit=request_data.word_limit,
         type=request_data.type,
-        research_data=None,
-        draft=None,
-        feedback=None,
-        approved=False
+        url=request_data.url,
+        research_summary=None,
+        url_analysis=None,
+        image_analysis=None,
+        video_analysis=None,
+        post=None,
+        score=None,
+        critique=None,
+        iteration_count=0
     )
 
     result = langgraph_app.invoke(state)
@@ -124,14 +129,12 @@ async def post_linkedin_image_content(request_data: ImageResponse):
     try:
 
 
-        if not request_data.post_title or not request_data.post_content or not request_data.post_image or not request_data.post_description or not request_data.post_visibility:
+        if not request_data.post_content or not request_data.post_image or not request_data.post_visibility:
             raise HTTPException(status_code=400, detail="Missing required fields")
 
         response = uploader.upload_image_content(
-            request_data.post_title,
             request_data.post_content,
             request_data.post_image,
-            request_data.post_description,
             request_data.post_visibility
         )
 
@@ -145,14 +148,13 @@ async def post_linkedin_video_content(request_data: VideoResponse):
     try:
 
 
-        if not request_data.post_title or not request_data.post_content or not request_data.post_video or not request_data.post_description or not request_data.post_visibility:
+        if not request_data.post_title or not request_data.post_content or not request_data.post_video or not request_data.post_visibility:
             raise HTTPException(status_code=400, detail="Missing required fields")
 
         response = uploader.upload_video_content(
             request_data.post_title,
             request_data.post_content,
             request_data.post_video,
-            request_data.post_description,
             request_data.post_visibility
         )
 

@@ -8,8 +8,9 @@ from .critic_agent import critic_agent
 from .writer_agent import writer_agent
 from .researcher_agent import research_agent
 from .url_agent import url_agent
-from .image_agent import image_analyser_agent # New import
-from .video_agent import video_analyser_agent # New import
+from .image_agent import image_analyser_agent
+from .video_agent import video_analyser_agent
+import json # Import json module
 
 MAX_REWRITES = 3
 
@@ -20,12 +21,12 @@ class AgentState(BaseModel):
     audience: str
     intent: str
     word_limit: int
-    type: Literal["text", "url", "image", "video"] # Add 'type' to AgentState
-    url: Optional[str] = None # Add url field for URL, image, video type content
+    type: Literal["text", "url", "image", "video"]
+    url: Optional[str] = None
     research_summary: Optional[str] = None
     url_analysis: Optional[URLAnalysisOutput] = None
-    image_analysis: Optional[ImageAnalysisOutput] = None # New field for image analysis output
-    video_analysis: Optional[VideoAnalysisOutput] = None # New field for video analysis output
+    image_analysis: Optional[ImageAnalysisOutput] = None
+    video_analysis: Optional[VideoAnalysisOutput] = None
     post: Optional[str] = None
     score: Optional[float] = None
     critique: Optional[str] = None
@@ -52,6 +53,7 @@ def url_analysis_wrapper(state: AgentState) -> AgentState:
     if state.url:
         print(f"Starting URL analysis for: {state.url}")
         analysis_output = url_agent.invoke(state.url)
+        # Assuming url_agent returns a direct Pydantic model or dict
         state.url_analysis = analysis_output
         state.research_summary = analysis_output.summary
         print(f"URL analysis complete. Summary: {state.url_analysis.summary[:100]}...")
@@ -65,12 +67,13 @@ def image_analysis_wrapper(state: AgentState) -> AgentState:
     """
     if state.url:
         print(f"Starting Image analysis for: {state.url}")
-        # image_analyser_agent expects a dictionary with 'image_url' key
         response = image_analyser_agent.invoke({"image_url": state.url})
         try:
-            parsed = ImageAnalysisOutput.parse_raw(response.content)
+            # Clean the output string before parsing
+            cleaned_content = response.content.strip().replace("```json", "").replace("```", "").strip()
+            parsed = ImageAnalysisOutput.parse_raw(cleaned_content)
             state.image_analysis = parsed
-            state.research_summary = parsed.description # Use description as summary for writer
+            state.research_summary = parsed.description
             print(f"Image analysis complete. Description: {state.image_analysis.description[:100]}...")
         except Exception as e:
             print(f"Error parsing image analysis output: {e}")
@@ -86,12 +89,13 @@ def video_analysis_wrapper(state: AgentState) -> AgentState:
     """
     if state.url:
         print(f"Starting Video analysis for: {state.url}")
-        # video_analyser_agent expects a dictionary with 'video_url' key
         response = video_analyser_agent.invoke({"video_url": state.url})
         try:
-            parsed = VideoAnalysisOutput.parse_raw(response.content)
+            # Clean the output string before parsing
+            cleaned_content = response.content.strip().replace("```json", "").replace("```", "").strip()
+            parsed = VideoAnalysisOutput.parse_raw(cleaned_content)
             state.video_analysis = parsed
-            state.research_summary = parsed.summary # Use summary for writer
+            state.research_summary = parsed.summary
             print(f"Video analysis complete. Summary: {state.video_analysis.summary[:100]}...")
         except Exception as e:
             print(f"Error parsing video analysis output: {e}")
@@ -106,7 +110,6 @@ def research_wrapper(state: AgentState) -> AgentState:
     """
     Performs general web research if no specific content analysis is present.
     """
-    # Skip general research if URL, Image, or Video analysis has already provided a summary
     if state.research_summary and (state.type == "url" or state.type == "image" or state.type == "video"):
         print("Skipping general research as specific content analysis (URL/Image/Video) is available.")
         return state
@@ -125,16 +128,18 @@ def research_wrapper(state: AgentState) -> AgentState:
           "summary": "<summary>"
         }}
     """
-    result = research_agent.invoke({"input": query}) # researcher_agent expects dict input with 'input' key
+    result = research_agent.invoke({"input": query})
     try:
         # Assuming research_agent might return a dict or a string depending on its setup
         if isinstance(result, dict) and "summary" in result:
              state.research_summary = result["summary"]
         elif isinstance(result, str):
-            parsed = ResearchOutput.parse_raw(result)
+            # Clean the output string if it's a string from the agent (e.g., with markdown)
+            cleaned_result = result.strip().replace("```json", "").replace("```", "").strip()
+            parsed = ResearchOutput.parse_raw(cleaned_result)
             state.research_summary = parsed.summary
         else:
-            state.research_summary = str(result) # Fallback to string representation
+            state.research_summary = str(result)
     except Exception as e:
         print(f"Error parsing research output: {e}")
         state.research_summary = f"Could not generate a good research summary. Raw: {result}"
@@ -171,16 +176,17 @@ def writer_wrapper(state: AgentState) -> AgentState:
         )
         writer_input_data["description"] = f"{state.description}. Based on the video at {state.url}."
     elif not state.research_summary:
-         # Fallback if no specific research or content analysis
          writer_input_data["research_summary"] = "No external research or content analysis available."
 
     response = writer_agent.invoke(writer_input_data)
     try:
-        parsed = WriterOutput.parse_raw(response.content)
+        # Clean the output string before parsing
+        cleaned_content = response.content.strip().replace("```json", "").replace("```", "").strip()
+        parsed = WriterOutput.parse_raw(cleaned_content)
         state.post = parsed.content
     except Exception as e:
         print(f"Error parsing writer output: {e}")
-        state.post = response.content
+        state.post = response.content # Keep raw content in case of parsing failure for debugging
     return state
 
 
@@ -196,16 +202,18 @@ def critic_wrapper(state: AgentState) -> AgentState:
         "audience": state.audience
     })
     try:
-        parsed = CriticOutput.parse_raw(response.content)
+        # Clean the output string before parsing
+        cleaned_content = response.content.strip().replace("```json", "").replace("```", "").strip()
+        parsed = CriticOutput.parse_raw(cleaned_content)
         avg_score = (parsed.clarity + parsed.tone + parsed.engagement + parsed.relevance) / 4
         state.score = avg_score
         state.critique = parsed.suggestion
     except Exception as e:
         print(f"Error parsing critic output: {e}")
-        state.score = 5
+        state.score = 5 # Assign a default score if parsing fails
         state.critique = "Failed to parse critic output. Please refine model response."
     
-    state.iteration_count += 1 
+    state.iteration_count += 1
     print(f"Critic Score: {state.score}, Iteration: {state.iteration_count}")
     print(f"Critique: {state.critique}")
     return state
@@ -215,14 +223,14 @@ graph = StateGraph(AgentState)
 
 # Add all nodes
 graph.add_node("url_analyzer", RunnableLambda(url_analysis_wrapper))
-graph.add_node("image_analyzer", RunnableLambda(image_analysis_wrapper)) # New node
-graph.add_node("video_analyzer", RunnableLambda(video_analysis_wrapper)) # New node
+graph.add_node("image_analyzer", RunnableLambda(image_analysis_wrapper))
+graph.add_node("video_analyzer", RunnableLambda(video_analysis_wrapper))
 graph.add_node("research", RunnableLambda(research_wrapper))
 graph.add_node("writer", RunnableLambda(writer_wrapper))
 graph.add_node("critic", RunnableLambda(critic_wrapper))
 
 # Set entry point with conditional routing based on 'type'
-graph.set_entry_point("research") # Define a conceptual start node for routing
+graph.set_entry_point("research")
 
 graph.add_conditional_edges(
     "research",
@@ -231,7 +239,7 @@ graph.add_conditional_edges(
         "image": "image_analyzer",
         "video": "video_analyzer",
         "text": "writer"
-    }.get(state.type, "writer"),  # Default to writer if type is unexpected
+    }.get(state.type, "writer"),
     {
         "url_analyzer": "url_analyzer",
         "image_analyzer": "image_analyzer",
