@@ -218,7 +218,7 @@ def create_image_share(user_id, asset, share_text, title=None, description=None,
         return None
 
 
-def share_image_post(share_text, image_paths, titles=None, descriptions=None, visibility="PUBLIC"):
+def share_image_post(image_paths, share_text, titles=None, descriptions=None, visibility="PUBLIC"):
     """
     Complete process to share multiple images in a single LinkedIn post.
 

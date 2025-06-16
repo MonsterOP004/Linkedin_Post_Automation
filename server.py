@@ -134,8 +134,8 @@ async def post_linkedin_image_content(request_data: ImageResponse):
             raise HTTPException(status_code=400, detail="Missing required fields")
 
         response = uploader.upload_image_content(
-            request_data.post_content,
             request_data.post_image,
+            request_data.post_content,
             request_data.post_visibility
         )
 
