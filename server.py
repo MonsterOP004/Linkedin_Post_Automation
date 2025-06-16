@@ -45,7 +45,7 @@ class URLResponse(BaseModel):
 class ImageResponse(BaseModel):
     
     post_content : str
-    post_image : str
+    post_image : List[str]
     post_visibility : str
 
 class VideoResponse(BaseModel):
